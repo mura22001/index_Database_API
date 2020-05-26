@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset = "UTF-8">
+	<title>index_database_api</title>
+	<script>
+		//データベース名を指定
+		var dbName = 'testDB';
+		//オブジェクト・ストアの名前を指定
+		var storeName = 'testStore';
+		//データベース接続(非同期)
+		var result = indexedDB.open(dbName);
+
+		//データベースを新規作成する必要があるかバージョンの更新が必要な場合
+		result.addEventListener("upgradeneeded", function(ev){
+			console.log("データベース" + dbName + "が新規製作されたか、データベースのバージョンが更新されました");
+
+			var db = ev.target.result;
+			db.createObjectStore(storeName, {keyPath: 'id'});
+
+		});
+
+		result.addEventListener("success", function(ev){
+			console.log("データベース" + dbName + "との接続に成功しました");
+			var db = ev.target.result;
+			console.log(db);
+			console.log("データベース" + dbName + "のバージョンは" + ev.target.result.version + "です");
+				var datas = [
+					{id:1, name:'田中太郎', age:35},
+					{id:2, name:'山田一郎', age:25},
+					{id:3, name:'高橋花子', age:18, sex: "female"}
+			];
+			var trs = db.transaction(storeName, 'readwrite');
+			var targetStore = trs.objectStore(storeName);
+			for(i=0;i<datas.length;i++){
+				putResult = targetStore.put(datas[i]);
+				putResult.addEventListener("success", function(){
+					console.log(i+"件目のデータ記録成功");
+				});
+			}
+
+			trs.addEventListener("complete", function(){
+				console.log('トランザクション処理が完了しました');
+			});
+			db.close();
+		});
+
+		result.addEventListener("error", function(ev){
+			console.log("データベース"+ dbName+ "との接続に成功しました");
+			var db = ev.target.result;
+			db.close();
+		});
+
+		window.addEventListener("load", function(){
+			var recData = document.getElementById("recDataId");
+			var recData = document.getElementById("recDataName");
+			var recData = document.getElementById("recDataAge");
+			var regBtn = document.getElementById("regBtn");
+			var delBtn = document.getElementById("delBtn");
+			var openBtn = document.getElementById("openBtn");
+			var dispData = document.getElementById("dispData");
+			var delResult;
+
+			delBtn.addEventListener("success", function(ev){
+				delResult = indexedDB.deleteDatabase(dbName);
+
+				delResult.addEventListener("success", function(ev){
+					console.log("データベース"+dbName+"の削除成功");
+					dispData.innerHTML = "データベースが削除されました";
+				});
+
+				delResult.addEventListener("error", function(ev){
+					console.log("データベース"+dbName+"の削除失敗");
+					dispData.innerHTML = "データベースの削除に失敗しました";
+				});
+			});
+
+			openBtn.addEventListener("click", function(ev){
+				var openReq = indexedDB.open(dbName);
+
+				openReq.addEventListener("success", function(ev){
+					var db = ev.target.result;
+					var trs = db.transaction(storeName, 'readonly');
+					var targetStore = trs.objectStore(storeName);
+					var resultQuery = targetStore.getAll();
+
+					resultQuery.addEventListener("success", function(evt){
+						console.log(evt.target.result);
+						arrResult = evt.target.result;
+
+						strTable = "<table border='1'><tr><td>id</td><td>name</td><td>age</td></tr>";
+
+						for(i=0;i<arrResult.length;i++){
+							strTable += "<tr>";
+							strTable += "<td>" + arrResult[i]["id"] + "</td>";
+							strTable += "<td>" + arrResult[i]["name"] + "</td>";
+							strTable += "<td>" + arrResult[i]["age"] + "</td>";
+							strTable += "</tr>";
+						}
+						strTable += "</table>";
+						dispData.innerHTML = strTable;
+					});
+
+					resultQuery.addEventListener("error", function(evt){
+						console.log("認証失敗");
+					});
+				});
+			});
+
+			regBtn.addEventListener("click", function(ev){
+				var addData = {id : parseInt(recDataId.value), name : recDataName.value, age:parseInt(recDataAge.value)};
+				var openReq = indexedDB.open(dbName);
+
+				openReq.addEventListener("success",function(ev){
+					var db = ev.target.result;
+
+					var trs = db.transaction(storeName, 'readwrite');
+					var targetStore = trs.objectStore(storeName);
+					putResult = targetStore.put(addData);
+
+						putResult.addEventListener("success", function(){
+							console.log("データ記録成功");
+							console.log("データベース"+dbName+"のバージョンは"+ev.target.result.version+"です");
+						});
+				});
+			});
+		});
+	</script>
+</head>
+<body>
+<h1>Indexed Database API</h1>
+<p>空欄の場合のエラー処理がないので規定値を入れておきます。</p>
+ID:<input type="number" id="recDataId" value="4">
+名前:<input type="text" id="recDataName" value="吉田進">
+年齢:<input type="number" id="recDataAge" value="39">
+<button id="regBtn">記録</button>
+<hr>
+<button id="openBtn">データベース内容の取得</button><br>
+<br>
+<div id="dispData">ここに情報が出ます</div>
+<hr>
+<button id="delBtn">データベースごと削除</button>
+</body>
+</html>
