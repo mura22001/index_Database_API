@@ -13,44 +13,69 @@
 
 		//データベースを新規作成する必要があるかバージョンの更新が必要な場合
 		result.addEventListener("upgradeneeded", function(ev){
+			//データベースのバージョン取得
 			console.log("データベース" + dbName + "が新規製作されたか、データベースのバージョンが更新されました");
-
+			//接続できたデータベース・オブジェクトの取得
 			var db = ev.target.result;
+			//オブジェクト・ストアの作成
+			//第二引数にインデックス（見出し）となるキー名を指定する
+			//{KeyPath: 'キー名'}という書式
 			db.createObjectStore(storeName, {keyPath: 'id'});
-
+			//これはidというキーを検索に使うという意味で、データの中にidというキーしか持てないという意味ではない
+			//オブジェクト・ストアはこのupgradeneededイベントの中でしか作れない
 		});
 
+		//データベースが新規作成されたかバージョンが更新された場合
+		//onupgradeneededのあとにここにくる
 		result.addEventListener("success", function(ev){
 			console.log("データベース" + dbName + "との接続に成功しました");
+			//接続できたデータベース・オブジェクトの取得
 			var db = ev.target.result;
+			//オブジェクトの中身を覗いておく
 			console.log(db);
+			//データベースのバージョン取得
 			console.log("データベース" + dbName + "のバージョンは" + ev.target.result.version + "です");
+				
+				//新規データの投入
+				//形式はJavaScriptオブジェクト
+				//idはupgradeneededでストア作成時にインデックス・キーに指定したので必須
 				var datas = [
 					{id:1, name:'田中太郎', age:35},
 					{id:2, name:'山田一郎', age:25},
 					{id:3, name:'高橋花子', age:18, sex: "female"}
 			];
+			//トランザクションの生成（読み書きモード）
 			var trs = db.transaction(storeName, 'readwrite');
+			//接続するオブジェクト・ストアの指定
 			var targetStore = trs.objectStore(storeName);
+			//データの挿入
 			for(i=0;i<datas.length;i++){
+				//データの挿入
 				putResult = targetStore.put(datas[i]);
+				//挿入結果が成功なら
 				putResult.addEventListener("success", function(){
 					console.log(i+"件目のデータ記録成功");
 				});
 			}
 
+			//トランザクション完了
 			trs.addEventListener("complete", function(){
 				console.log('トランザクション処理が完了しました');
 			});
+			//上で取得したデータベースとの接続を一旦切断
 			db.close();
 		});
 
+		//データベースとの接続に失敗した場合
 		result.addEventListener("error", function(ev){
 			console.log("データベース"+ dbName+ "との接続に成功しました");
+			//接続できたデータベース・オブジェクトの取得
 			var db = ev.target.result;
+			//上で取得したデータベースとの接続を一旦切断
 			db.close();
 		});
 
+		//DOM読み込み完了
 		window.addEventListener("load", function(){
 			var recData = document.getElementById("recDataId");
 			var recData = document.getElementById("recDataName");
@@ -59,29 +84,35 @@
 			var delBtn = document.getElementById("delBtn");
 			var openBtn = document.getElementById("openBtn");
 			var dispData = document.getElementById("dispData");
-			var delResult;
+			var delResult;//削除処理のデータベース・オブジェクト
 
-			delBtn.addEventListener("success", function(ev){
+			//データベース削除ボタン
+			delBtn.addEventListener("click", function(ev){
 				delResult = indexedDB.deleteDatabase(dbName);
-
+				console.log("うごいています");
+				//削除成功時
 				delResult.addEventListener("success", function(ev){
 					console.log("データベース"+dbName+"の削除成功");
 					dispData.innerHTML = "データベースが削除されました";
 				});
 
+				//削除失敗時
 				delResult.addEventListener("error", function(ev){
 					console.log("データベース"+dbName+"の削除失敗");
 					dispData.innerHTML = "データベースの削除に失敗しました";
 				});
 			});
 
+			//データ取得ボタン
 			openBtn.addEventListener("click", function(ev){
 				var openReq = indexedDB.open(dbName);
 
 				openReq.addEventListener("success", function(ev){
 					var db = ev.target.result;
+					//読み取り(readonly)モードでトランザクション生成
 					var trs = db.transaction(storeName, 'readonly');
 					var targetStore = trs.objectStore(storeName);
+					//すべてのデータを取得
 					var resultQuery = targetStore.getAll();
 
 					resultQuery.addEventListener("success", function(evt){
@@ -107,19 +138,24 @@
 				});
 			});
 
+			//データ記録ボタン
 			regBtn.addEventListener("click", function(ev){
 				var addData = {id : parseInt(recDataId.value), name : recDataName.value, age:parseInt(recDataAge.value)};
 				var openReq = indexedDB.open(dbName);
 
 				openReq.addEventListener("success",function(ev){
 					var db = ev.target.result;
-
+					//トランザクションの生成（読み書きモード）
 					var trs = db.transaction(storeName, 'readwrite');
+					//接続するオブジェクト・ストアの指定
 					var targetStore = trs.objectStore(storeName);
+					//データの挿入
 					putResult = targetStore.put(addData);
 
+						//挿入結果が成功なら
 						putResult.addEventListener("success", function(){
 							console.log("データ記録成功");
+							//データベースのバージョン取得。データを記録してもバージョンは上がらない
 							console.log("データベース"+dbName+"のバージョンは"+ev.target.result.version+"です");
 						});
 				});
